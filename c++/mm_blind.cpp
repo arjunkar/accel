@@ -4,6 +4,7 @@ and manual control of the associated memory.
 */
 
 #include <cstdlib>
+#include <cassert>
 
 int* blind(int* ptr_A, int* ptr_B, int row, int col, int hid){
     int* ptr_C;
@@ -13,11 +14,9 @@ int* blind(int* ptr_A, int* ptr_B, int row, int col, int hid){
     /* Naive matrix multiplication */
     for(int i = 0; i < row; i++){
         for(int j = 0; j < col; j++){
-            int out = 0;
             for(int k = 0; k < hid; k++){
-                out += ptr_A[i * hid + k] * ptr_B[k * col + j];
+                ptr_C[i * col + j] += ptr_A[i * hid + k] * ptr_B[k * col + j];
             }
-            ptr_C[i * col + j] = out;
         }
     }
 
@@ -39,6 +38,7 @@ int main(int argc, const char* argv[]){
     else{ /* Otherwise default to smallest nontrivial */
         N = 2;
     }
+    assert(N > 0);
     
     /* A cast to (int*) is needed in C++ malloc */
     int* ptr_A = (int*)malloc(sizeof(int) * N * N);
