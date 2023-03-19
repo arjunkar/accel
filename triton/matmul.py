@@ -13,8 +13,34 @@ Triton must be run on a GPU, so the code here should be moved to Colab for testi
 A matrix multiplication Triton kernel is available in the Triton tutorials and
 deals with similar tiling issues as we have explored in Python and C++.
 It is available here:
-{webpage}
+https://triton-lang.org/master/getting-started/tutorials/03-matrix-multiplication.html
 Here we build on this tutorial to understand more features of Triton.
+
+On an NVIDIA Tesla T4 GPU, there are 40 Streaming Multiprocessors (SM's) with
+a 1.59 GHz boost clock rate (compared to the A100 1.41 GHz rate quoted here:
+https://docs.nvidia.com/deeplearning/performance/dl-performance-gpu-background/index.html).
+With a fused-multiply-add operation rate per clock cycle of 512 for FP16 on tensor cores,
+this yields 40 SM * 1.41 GHz * 512 FP16/cycle * 2 ops (fma = mult+add) = 65.13 TFLOPS.
+This matches the result quoted on the reference page: 
+https://www.techpowerup.com/gpu-specs/tesla-t4.c3316.
+The 320 GB/s main memory bandwidth means that the T4 achieves a minimum OP/BYTE ratio
+of min(OP/BYTE) = 65.13 TFLO / 320 GB ~ 200.
+If data is stored in the shared L2 cache instead, this ratio would be higher.
+
+A matrix multiplication of (M,K) x (K,N) -> (M,N) dimension requires 2*M*N*K FLO,
+since we need K fused-mult-&-add for each output element.
+To perform this calculation, all three matrices need to be loaded from memory,
+which requires M*N + M*K + N*K FP16 loads, and since each FP16 is 2 bytes, this is
+2 * (M*N + M*K + N*K) bytes.
+Therefore, the arithmetic intensity of matmul is AI = M*N*K / (M*N + M*K + N*K).
+For square matrices, this is N/3.
+
+From this, we see that matmul is math-bound when N/3 > 200 but bandwidth-bound
+when N/3 < 200.
+It is perhaps relevant that the only N on which the Triton matmul op achieves
+performance comparable to cuBLAS are the small N near the bandwidth-bound regime.
+Once the computation becomes surely math-bound around N = 640, cuBLAS is clearly better.
+This suggests that Triton may not be maximizing arithmetic throughput on the T4.
 """
 
 import torch
