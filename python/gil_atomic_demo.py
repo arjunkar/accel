@@ -32,29 +32,39 @@ locked = True gives correct results while
 locked = False gives incorrect results.
 
 For reference, the dis.dis(step) output is:
-56           0 LOAD_GLOBAL              0 (lock)
-              2 SETUP_WITH              26 (to 30)
-              4 POP_TOP
+ 81           0 SETUP_LOOP              52 (to 54)
+              2 LOAD_GLOBAL              0 (range)
+              4 LOAD_CONST               1 (1000000)
+              6 CALL_FUNCTION            1
+              8 GET_ITER
+        >>   10 FOR_ITER                40 (to 52)
+             12 STORE_FAST               1 (_)
 
- 60           6 LOAD_GLOBAL              1 (shared_balance)
-              8 STORE_FAST               1 (balance)
+ 82          14 LOAD_GLOBAL              1 (lock)
+             16 SETUP_WITH              26 (to 44)
+             18 POP_TOP
 
- 61          10 LOAD_FAST                1 (balance)
-             12 LOAD_FAST                0 (sgn)
-             14 LOAD_CONST               1 (100)
-             16 BINARY_MULTIPLY
-             18 INPLACE_ADD
-             20 STORE_FAST               1 (balance)
+ 86          20 LOAD_GLOBAL              2 (shared_balance)
+             22 STORE_FAST               2 (balance)
 
- 62          22 LOAD_FAST                1 (balance)
-             24 STORE_GLOBAL             1 (shared_balance)
-             26 POP_BLOCK
-             28 LOAD_CONST               0 (None)
-        >>   30 WITH_CLEANUP_START
-             32 WITH_CLEANUP_FINISH
-             34 END_FINALLY
-             36 LOAD_CONST               0 (None)
-             38 RETURN_VALUE
+ 87          24 LOAD_FAST                2 (balance)
+             26 LOAD_FAST                0 (sgn)
+             28 LOAD_CONST               2 (100)
+             30 BINARY_MULTIPLY
+             32 INPLACE_ADD
+             34 STORE_FAST               2 (balance)
+
+ 88          36 LOAD_FAST                2 (balance)
+             38 STORE_GLOBAL             2 (shared_balance)
+             40 POP_BLOCK
+             42 LOAD_CONST               0 (None)
+        >>   44 WITH_CLEANUP_START
+             46 WITH_CLEANUP_FINISH
+             48 END_FINALLY
+             50 JUMP_ABSOLUTE           10
+        >>   52 POP_BLOCK
+        >>   54 LOAD_CONST               0 (None)
+             56 RETURN_VALUE
 None
 """
 
@@ -62,7 +72,7 @@ import threading
 import dis
 
 # Change this boolean to try the two calculations
-locked = True
+locked = False
 
 # Trivial "fake" context manager for unlocked version
 class TrivialLock():
@@ -78,28 +88,22 @@ lock = threading.Lock() if locked else TrivialLock()
 shared_balance = 0
 
 def step(sgn):
-    with lock: 
-    # If locked == False, this context does nothing
-    # and the following ops may be interrupted
-        global shared_balance
-        balance = shared_balance
-        balance += sgn*100
-        shared_balance = balance
+    for _ in range(1000000):
+        with lock:
+        # If locked == False, this context does nothing
+        # and the following ops may be interrupted
+            global shared_balance
+            balance = shared_balance
+            balance += sgn*100
+            shared_balance = balance
 
 # Uncomment to see disassembled bytecode of step function.
 # print(dis.dis(step))
 
-class Deposit(threading.Thread):
-    def run(self):
-        for _ in range(1000000):
-            step(1)
-
-class Withdraw(threading.Thread):
-    def run(self):
-        for _ in range(1000000):
-            step(-1)
-
-threads = [Deposit(), Withdraw()]
+threads = [
+        threading.Thread(target=step, args=(1,)),
+        threading.Thread(target=step, args=(-1,))
+        ]
 
 for thread in threads:
     thread.start()
