@@ -13,7 +13,7 @@ just like we need to when we spawn e.g. POSIX threads in C.
 
 This program, taken from the helpful answer here:
 https://stackoverflow.com/questions/105095/are-locks-unnecessary-in-multi-threaded-python-code-because-of-the-gil?rq=1
-demonstrates how a mutlithreaded Python program can lead to
+demonstrates how a multithreaded Python program can lead to
 incorrect results if not locked properly.
 
 The result of the calculation of shared_balance is expected
